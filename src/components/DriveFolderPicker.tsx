@@ -116,12 +116,7 @@ export function DriveFolderPicker({
         }
 
         await new Promise<void>((resolve) => {
-          if (window.gapi?.client?.load) {
-            window.gapi.client.load("picker", resolve);
-            return;
-          }
-
-          window.gapi?.load("client:picker", resolve);
+          window.gapi?.load("picker", resolve);
         });
 
         if (!cancelled) {
