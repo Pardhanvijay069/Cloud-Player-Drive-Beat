@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { DriveAudioFile } from "@/lib/google-drive";
+import type { BufferState } from "@/hooks/use-buffer-state";
 
 type Props = {
   track?: DriveAudioFile;
@@ -16,6 +17,12 @@ type Props = {
   onVolumeChange: (value: number) => void;
   onPrevious: () => void;
   onNext: () => void;
+  /** Buffer state from useBufferState hook */
+  bufferState?: BufferState;
+  /** Whether the current track is cached offline */
+  isCached?: boolean;
+  /** Whether caching is in progress */
+  isCaching?: boolean;
 };
 
 function formatTime(value: number) {
@@ -36,7 +43,10 @@ export function PlayerBar({
   onSeek,
   onVolumeChange,
   onPrevious,
-  onNext
+  onNext,
+  bufferState,
+  isCached = false,
+  isCaching = false,
 }: Props) {
   const [seekValue, setSeekValue] = useState(progress);
   const [isSeeking, setIsSeeking] = useState(false);
@@ -105,6 +115,7 @@ export function PlayerBar({
   };
 
   const displayName = track?.name?.replace(/\.[^/.]+$/, "") ?? "Select a track";
+  const isBuffering = bufferState?.isBuffering ?? false;
 
   return (
     <motion.footer
@@ -114,7 +125,7 @@ export function PlayerBar({
       className="fixed bottom-0 left-0 right-0 z-40 px-3 pb-3 sm:px-4 sm:pb-4"
     >
       <div className="mx-auto max-w-5xl player-glass rounded-2xl border border-border-subtle p-3 sm:p-4 shadow-[0_-8px_40px_rgba(0,0,0,0.3)]">
-        {/* Seek bar - full width at top */}
+        {/* Seek bar with buffer visualization */}
         <div
           ref={seekBarRef}
           className="relative h-1.5 w-full rounded-full bg-surface-elevated/80 cursor-pointer mb-3 group/seek touch-none"
@@ -125,12 +136,25 @@ export function PlayerBar({
           onMouseUp={handleSeekEnd}
           onTouchEnd={handleSeekEnd}
         >
-          {/* Progress fill */}
+          {/* Buffered ranges — shown as lighter fill behind the progress */}
+          {bufferState?.ranges.map((range, i) => (
+            <div
+              key={`buffer-${i}`}
+              className="absolute inset-y-0 rounded-full bg-secondary-text/15 transition-all duration-300"
+              style={{
+                left: `${range.startPct}%`,
+                width: `${range.endPct - range.startPct}%`,
+              }}
+            />
+          ))}
+
+          {/* Playback progress fill */}
           <div
             className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-accent to-accent-secondary transition-all duration-75"
             style={{ width: `${seekValue}%` }}
           />
-          {/* Thumb */}
+
+          {/* Seek thumb */}
           <div
             className="absolute top-1/2 -translate-y-1/2 h-3.5 w-3.5 rounded-full bg-white shadow-lg opacity-0 group-hover/seek:opacity-100 transition-opacity duration-200"
             style={{ left: `calc(${seekValue}% - 7px)` }}
@@ -148,11 +172,35 @@ export function PlayerBar({
                 exit={{ opacity: 0, x: 10 }}
                 transition={{ duration: 0.2 }}
               >
-                <p className="truncate text-sm font-medium text-primary-text">{displayName}</p>
+                <div className="flex items-center gap-1.5">
+                  <p className="truncate text-sm font-medium text-primary-text">{displayName}</p>
+                  {/* Buffering spinner */}
+                  {isBuffering && isPlaying && (
+                    <span className="inline-block h-3 w-3 animate-spin rounded-full border-[1.5px] border-accent/30 border-t-accent shrink-0" />
+                  )}
+                  {/* Cached indicator */}
+                  {isCached && (
+                    <span title="Available offline" className="shrink-0">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="text-accent/60">
+                        <path d="M12 2v6M12 18v4M4.93 4.93l4.24 4.24M14.83 14.83l4.24 4.24"/>
+                        <circle cx="12" cy="12" r="4"/>
+                      </svg>
+                    </span>
+                  )}
+                  {isCaching && !isCached && (
+                    <span className="inline-block h-2.5 w-2.5 animate-spin rounded-full border border-accent/20 border-t-accent/50 shrink-0" title="Caching for offline..." />
+                  )}
+                </div>
                 <div className="flex items-center gap-2 mt-0.5">
                   <span className="text-[11px] text-secondary-text">{formatTime(currentTime)}</span>
                   <span className="text-[11px] text-secondary-text/40">/</span>
                   <span className="text-[11px] text-secondary-text">{formatTime(duration)}</span>
+                  {/* Buffer percentage on slow connections */}
+                  {isBuffering && bufferState && bufferState.bufferedPct < 95 && (
+                    <span className="text-[10px] text-accent/70">
+                      Buffering {Math.round(bufferState.bufferedPct)}%
+                    </span>
+                  )}
                 </div>
               </motion.div>
             </AnimatePresence>
@@ -183,13 +231,16 @@ export function PlayerBar({
             >
               <AnimatePresence mode="wait">
                 <motion.div
-                  key={isPlaying ? "pause" : "play"}
+                  key={isBuffering && isPlaying ? "buffering" : isPlaying ? "pause" : "play"}
                   initial={{ scale: 0.5, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   exit={{ scale: 0.5, opacity: 0 }}
                   transition={{ duration: 0.15 }}
                 >
-                  {isPlaying ? (
+                  {isBuffering && isPlaying ? (
+                    /* Buffering spinner in the play button */
+                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                  ) : isPlaying ? (
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                       <rect x="6" y="4" width="4" height="16" rx="1"/>
                       <rect x="14" y="4" width="4" height="16" rx="1"/>

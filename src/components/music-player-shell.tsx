@@ -7,6 +7,9 @@ import { Sidebar } from "@/components/Sidebar";
 import { MobileDrawer } from "@/components/MobileDrawer";
 import { Playlist } from "@/components/Playlist";
 import { PlayerBar } from "@/components/PlayerBar";
+import { useBufferState } from "@/hooks/use-buffer-state";
+import { useAudioPreloader } from "@/hooks/use-audio-preloader";
+import { useTrackCache } from "@/hooks/use-track-cache";
 import type { DriveAudioFile } from "@/lib/google-drive";
 
 type FolderSelection = {
@@ -39,6 +42,22 @@ export function MusicPlayerShell({ pickerApiKey, pickerAppId }: Props) {
     () => (currentIndex >= 0 ? tracks[currentIndex] : undefined),
     [currentIndex, tracks]
   );
+
+  // ─── Streaming hooks ───────────────────────────────────────────────
+  // Track buffer state (played vs buffered ranges)
+  const bufferState = useBufferState(audioRef.current);
+
+  // Intelligent next-track preloading
+  useAudioPreloader({
+    currentIndex,
+    tracks,
+    progress,
+    isPlaying,
+  });
+
+  // Auto-cache currently playing track after 5s of playback
+  const { isCached, isCaching } = useTrackCache(currentTrack, isPlaying);
+  // ──────────────────────────────────────────────────────────────────
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -256,7 +275,8 @@ export function MusicPlayerShell({ pickerApiKey, pickerAppId }: Props) {
 
   return (
     <>
-      <audio ref={audioRef} preload="metadata" />
+      {/* preload="auto" tells the browser to eagerly buffer audio data */}
+      <audio ref={audioRef} preload="auto" />
 
       {/* Mobile drawer toggle */}
       <div className="lg:hidden fixed bottom-20 right-4 z-30">
@@ -325,6 +345,9 @@ export function MusicPlayerShell({ pickerApiKey, pickerAppId }: Props) {
         progress={progress}
         track={currentTrack}
         volume={volume}
+        bufferState={bufferState}
+        isCached={isCached}
+        isCaching={isCaching}
       />
     </>
   );

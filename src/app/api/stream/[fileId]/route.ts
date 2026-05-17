@@ -3,6 +3,11 @@ import { NextResponse } from "next/server";
 
 import { authOptions } from "@/lib/auth";
 
+/**
+ * HEAD handler — returns file metadata (content-type, content-length)
+ * without downloading the file body. Used by browsers to determine
+ * if Range requests are supported before starting playback.
+ */
 export async function HEAD(
   request: Request,
   { params }: { params: Promise<{ fileId: string }> }
@@ -40,7 +45,10 @@ export async function HEAD(
 
     headers.set("Content-Type", contentType);
     headers.set("Accept-Ranges", "bytes");
-    headers.set("Cache-Control", "private, no-store");
+
+    // Allow caching for 1 hour (private = only user's browser, not CDN)
+    // This significantly reduces redundant requests when seeking
+    headers.set("Cache-Control", "private, max-age=3600, stale-while-revalidate=600");
 
     if (contentLength) {
       headers.set("Content-Length", contentLength);
@@ -55,6 +63,25 @@ export async function HEAD(
   }
 }
 
+/**
+ * GET handler — streams audio data from Google Drive.
+ *
+ * Supports HTTP Range requests for:
+ * - Partial content (206) responses for seek/forward/backward
+ * - Full content (200) responses for initial load
+ *
+ * The browser's <audio> element automatically sends Range headers.
+ * When the user seeks, the browser requests the specific byte range needed.
+ *
+ * Flow:
+ * 1. Browser sends: Range: bytes=12345-
+ * 2. This proxy forwards the Range header to Google Drive
+ * 3. Drive returns 206 with Content-Range: bytes 12345-99999/100000
+ * 4. We proxy that response back with the same headers
+ *
+ * This enables efficient chunk-based streaming without downloading
+ * the entire file upfront.
+ */
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ fileId: string }> }
@@ -73,13 +100,21 @@ export async function GET(
   const range = request.headers.get("range");
 
   try {
+    const driveHeaders: Record<string, string> = {
+      Authorization: `Bearer ${session.accessToken}`,
+    };
+
+    // Forward the Range header from the browser to Google Drive.
+    // This is what enables chunk-based streaming — Drive will respond
+    // with only the requested byte range instead of the full file.
+    if (range) {
+      driveHeaders["Range"] = range;
+    }
+
     const driveResponse = await fetch(
       `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&supportsAllDrives=true`,
       {
-        headers: {
-          Authorization: `Bearer ${session.accessToken}`,
-          ...(range ? { Range: range } : {})
-        },
+        headers: driveHeaders,
         cache: "no-store"
       }
     );
@@ -104,7 +139,11 @@ export async function GET(
 
     headers.set("Content-Type", contentType);
     headers.set("Accept-Ranges", acceptRanges);
-    headers.set("Cache-Control", "private, no-store");
+
+    // Cache streamed chunks for 1 hour — crucial for seek performance.
+    // When the user seeks backward, the browser can serve the already-fetched
+    // bytes from its HTTP cache instead of re-requesting from Drive.
+    headers.set("Cache-Control", "private, max-age=3600, stale-while-revalidate=600");
 
     if (contentLength) {
       headers.set("Content-Length", contentLength);
