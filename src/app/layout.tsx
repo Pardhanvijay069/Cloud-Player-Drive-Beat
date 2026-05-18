@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Space_Grotesk } from "next/font/google";
+import { Inter, Space_Grotesk, Plus_Jakarta_Sans } from "next/font/google";
 import { getServerSession } from "next-auth";
 
 import { AppSessionProvider } from "@/components/providers/session-provider";
@@ -16,6 +16,12 @@ const bodyFont = Inter({
 const displayFont = Space_Grotesk({
   subsets: ["latin"],
   variable: "--font-display"
+});
+
+const jakartaFont = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+  variable: "--font-jakarta"
 });
 
 export const metadata: Metadata = {
@@ -36,7 +42,7 @@ export default async function RootLayout({
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <meta name="theme-color" content="#0a0e14" />
       </head>
-      <body className={`${bodyFont.variable} ${displayFont.variable}`}>
+      <body className={`${bodyFont.variable} ${displayFont.variable} ${jakartaFont.variable}`}>
         <AppSessionProvider session={session}>
           <ThemeProvider>
             <div className="min-h-screen bg-mesh">{children}</div>

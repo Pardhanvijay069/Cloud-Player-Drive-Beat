@@ -1,7 +1,9 @@
 "use client";
 
+import { memo } from "react";
 import { motion } from "framer-motion";
 import type { DriveAudioFile } from "@/lib/google-drive";
+import { parseTrackMetadata } from "@/lib/music-metadata";
 
 type Props = {
   track: DriveAudioFile;
@@ -29,71 +31,135 @@ function getFileExtension(name: string): string {
   return parts.length > 1 ? parts[parts.length - 1].toUpperCase() : "AUD";
 }
 
-export function TrackCard({ track, index, isActive, onClick }: Props) {
+/** Animated wave bars for currently-playing track */
+function WaveBars() {
+  return (
+    <div className="flex items-center gap-0.5 h-4">
+      {[0, 150, 300, 75].map((delay, i) => (
+        <motion.span
+          key={i}
+          className="inline-block w-[3px] rounded-full bg-white"
+          animate={{ scaleY: [0.4, 1, 0.4] }}
+          transition={{
+            duration: 0.8,
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: delay / 1000,
+          }}
+          style={{ height: "100%", transformOrigin: "bottom" }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function TrackCardInner({ track, index, isActive, onClick }: Props) {
   const ext = getFileExtension(track.name);
-  const displayName = track.name.replace(/\.[^/.]+$/, "");
   const sizeStr = formatSize(track.size);
+  const meta = parseTrackMetadata(track.name);
 
   return (
     <motion.button
       layout
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, delay: index * 0.03 }}
-      whileHover={{ scale: 1.01 }}
-      whileTap={{ scale: 0.99 }}
-      className={`group relative flex w-full items-center gap-3 rounded-2xl border p-3 sm:p-4 text-left transition-all duration-300 ${
+      transition={{ duration: 0.3, delay: Math.min(index * 0.025, 0.4) }}
+      whileHover={{ scale: 1.006 }}
+      whileTap={{ scale: 0.996 }}
+      className={`group relative flex w-full items-center gap-3 rounded-2xl p-3 sm:p-3.5 text-left transition-all duration-300 overflow-hidden ${
         isActive
-          ? "border-accent/40 bg-accent/8 shadow-[0_0_30px_rgba(var(--accent-rgb),0.08)]"
-          : "border-border-subtle bg-surface/40 hover:border-border-default hover:bg-surface-elevated/50"
+          ? "shadow-lg"
+          : "hover:border-border-default"
       }`}
+      style={{
+        background: isActive
+          ? "linear-gradient(135deg, rgba(167,139,250,0.12), rgba(103,232,249,0.06))"
+          : "rgba(255,255,255,0.02)",
+        border: isActive
+          ? "1px solid rgba(167,139,250,0.3)"
+          : "1px solid var(--color-border-subtle)",
+        boxShadow: isActive
+          ? "0 4px 24px rgba(167,139,250,0.12), inset 0 1px 0 rgba(255,255,255,0.05)"
+          : undefined,
+      }}
       onClick={onClick}
       type="button"
     >
-      {/* Track number / active indicator */}
-      <div className={`relative flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-xl text-xs font-bold transition-all duration-300 shrink-0 ${
-        isActive
-          ? "bg-gradient-to-br from-accent to-accent-secondary text-white shadow-lg shadow-accent/30"
-          : "bg-surface-elevated text-secondary-text group-hover:bg-accent/10 group-hover:text-accent"
-      }`}>
+      {/* Active left accent */}
+      {isActive && (
+        <motion.div
+          layoutId="track-accent"
+          className="absolute left-0 top-3 bottom-3 w-0.5 rounded-full"
+          style={{ background: "linear-gradient(180deg, var(--color-accent), var(--color-accent-secondary))" }}
+        />
+      )}
+
+      {/* Track number / wave indicator */}
+      <div
+        className={`relative flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-xl text-xs font-bold transition-all duration-300 shrink-0 ${
+          isActive ? "" : "group-hover:bg-accent/8 group-hover:text-accent"
+        }`}
+        style={isActive
+          ? {
+            background: "linear-gradient(135deg, var(--color-accent), var(--color-accent-secondary))",
+            boxShadow: "0 4px 16px rgba(167,139,250,0.4)",
+          }
+          : { background: "rgba(255,255,255,0.05)" }
+        }
+      >
         {isActive ? (
-          <div className="flex items-center gap-0.5">
-            <span className="inline-block h-2.5 w-0.5 animate-pulse rounded-full bg-white" style={{ animationDelay: "0ms" }} />
-            <span className="inline-block h-3.5 w-0.5 animate-pulse rounded-full bg-white" style={{ animationDelay: "150ms" }} />
-            <span className="inline-block h-2 w-0.5 animate-pulse rounded-full bg-white" style={{ animationDelay: "300ms" }} />
-            <span className="inline-block h-3 w-0.5 animate-pulse rounded-full bg-white" style={{ animationDelay: "75ms" }} />
-          </div>
+          <WaveBars />
         ) : (
-          <span>{String(index + 1).padStart(2, "0")}</span>
+          <span className="text-secondary-text tabular-nums text-[11px]">
+            {String(index + 1).padStart(2, "0")}
+          </span>
         )}
       </div>
 
       {/* Track info */}
       <div className="min-w-0 flex-1">
-        <p className={`truncate text-sm font-medium transition-colors ${
+        <p className={`truncate text-[13px] sm:text-sm font-semibold leading-tight transition-colors ${
           isActive ? "text-accent" : "text-primary-text"
         }`}>
-          {displayName}
+          {meta.title}
         </p>
-        <p className="mt-0.5 flex items-center gap-2 text-xs text-secondary-text">
-          <span className="inline-flex items-center rounded-md bg-surface-elevated/80 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider">
-            {ext}
-          </span>
-          {sizeStr && <span>{sizeStr}</span>}
-        </p>
+        <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-secondary-text">
+          <span className="truncate">{meta.artist}</span>
+          {ext && (
+            <>
+              <span className="text-border-default">·</span>
+              <span
+                className="inline-flex items-center rounded-md px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider shrink-0"
+                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
+              >
+                {ext}
+              </span>
+            </>
+          )}
+          {sizeStr && <span className="shrink-0 text-secondary-text/60">{sizeStr}</span>}
+        </div>
       </div>
 
-      {/* Playing dot */}
+      {/* Active dot */}
       {isActive && (
         <motion.div
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
-          className="h-2 w-2 rounded-full bg-accent shadow-[0_0_12px_rgba(var(--accent-rgb),0.7)] shrink-0"
+          className="h-1.5 w-1.5 rounded-full shrink-0"
+          style={{
+            background: "var(--color-accent)",
+            boxShadow: "0 0 8px rgba(167,139,250,0.7)",
+          }}
         />
       )}
 
-      {/* Hover glow (desktop only) */}
-      <div className="pointer-events-none absolute inset-0 rounded-2xl opacity-0 transition-opacity duration-300 group-hover:opacity-100 bg-gradient-to-r from-accent/[0.03] to-transparent" />
+      {/* Hover shimmer */}
+      <div
+        className="pointer-events-none absolute inset-0 rounded-2xl opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+        style={{ background: "linear-gradient(135deg, rgba(167,139,250,0.03), transparent)" }}
+      />
     </motion.button>
   );
 }
+
+export const TrackCard = memo(TrackCardInner);

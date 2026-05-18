@@ -19,20 +19,35 @@ const config: Config = {
         // Semantic tokens via CSS variables
         accent: "var(--color-accent)",
         "accent-secondary": "var(--color-accent-secondary)",
+        "accent-warm": "var(--color-accent-warm)",
         surface: "var(--color-surface)",
         "surface-elevated": "var(--color-surface-elevated)",
+        "surface-glass": "var(--color-surface-glass)",
         "primary-text": "var(--color-primary-text)",
         "secondary-text": "var(--color-secondary-text)",
+        "tertiary-text": "var(--color-tertiary-text)",
         "border-subtle": "var(--color-border-subtle)",
-        "border-default": "var(--color-border-default)"
+        "border-default": "var(--color-border-default)",
+        "border-accent": "var(--color-border-accent)",
       },
       boxShadow: {
-        glow: "0 20px 80px rgba(var(--accent-rgb), 0.18)"
+        glow: "var(--shadow-glow)",
+        card: "var(--shadow-card)",
+        player: "var(--shadow-player)",
+        artwork: "var(--shadow-artwork)",
       },
       backgroundImage: {
-        mesh:
-          "radial-gradient(circle at 20% 20%, rgba(var(--accent-rgb), 0.12), transparent 35%), radial-gradient(circle at 80% 0%, rgba(var(--accent-secondary-rgb), 0.1), transparent 30%), radial-gradient(circle at 80% 80%, rgba(var(--accent-rgb), 0.06), transparent 30%)"
-      }
+        mesh: "radial-gradient(ellipse at 15% 15%, rgba(167,139,250,0.07) 0%, transparent 50%), radial-gradient(ellipse at 85% 10%, rgba(103,232,249,0.05) 0%, transparent 45%), radial-gradient(ellipse at 50% 90%, rgba(249,168,212,0.04) 0%, transparent 50%)",
+      },
+      borderRadius: {
+        "4xl": "2rem",
+      },
+      animation: {
+        "vinyl-spin": "vinyl-spin 3s linear infinite",
+        "gradient-shift": "gradient-shift 6s ease infinite",
+        float: "float 4s ease-in-out infinite",
+        shimmer: "shimmer 1.8s ease-in-out infinite",
+      },
     }
   },
   plugins: []

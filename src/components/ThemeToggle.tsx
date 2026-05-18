@@ -27,9 +27,12 @@ export function ThemeToggle({ size = "md", showLabel = false, className = "" }: 
       )}
       <button
         onClick={toggleTheme}
-        className={`relative ${trackSize} rounded-full transition-colors duration-300 ${
-          theme === "dark" ? "bg-accent" : "bg-secondary-text/30"
-        }`}
+        className={`relative ${trackSize} rounded-full transition-all duration-300`}
+        style={{
+          background: theme === "dark"
+            ? "linear-gradient(135deg, var(--color-accent), var(--color-accent-secondary))"
+            : "rgba(100,116,139,0.3)",
+        }}
         type="button"
         aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
       >

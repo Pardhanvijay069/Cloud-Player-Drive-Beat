@@ -18,9 +18,11 @@ export default async function PlayerPage() {
   }
 
   return (
-    <>
+    <div className="flex flex-col" style={{ height: "100dvh", overflow: "hidden" }}>
       <Header compact />
-      <MusicPlayerShell pickerApiKey={pickerApiKey} pickerAppId={pickerAppId} />
-    </>
+      <div className="flex-1 overflow-hidden min-h-0">
+        <MusicPlayerShell pickerApiKey={pickerApiKey} pickerAppId={pickerAppId} />
+      </div>
+    </div>
   );
 }
